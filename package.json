@@ -4,7 +4,8 @@
   "description": "",
   "main": "process.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node process.js"
   },
   "repository": {
     "type": "git",
@@ -22,5 +23,10 @@
   "bugs": {
     "url": "https://github.com/faizan555/SquareUpProject/issues"
   },
-  "homepage": "https://github.com/faizan555/SquareUpProject#readme"
+  "homepage": "https://github.com/faizan555/SquareUpProject#readme",
+  "dependencies": {
+    "connect": "^3.6.3",
+    "serve-static": "^1.12.4",
+    "uuid": "^3.1.0"
+  }
 }
