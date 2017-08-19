@@ -5,15 +5,17 @@ var connect = require('connect');
 var serveStatic = require('serve-static');
 var querystring = require('querystring');
 var uuid = require('uuid/v4');
+var express = require('express');
+var app = express()
 
 var locationID = null;
-var chargeNewPayment = false;
+var chargeNewPayment = true;
 var currentTransaction = null;
 var newTransaction = null;
 
 var square_up_endpoint_uri = 'connect.squareup.com';
 var token = 'sandbox-sq0atb-yXNkt8kIw_laL5w__iF59g';
-var nonce = 'CBASEDhOWDADM4cdYTczq72rAwQgAQ';
+var nonce = null;
 
 function getLocationID() {
 	return new Promise((resolve, reject) => {
@@ -139,6 +141,8 @@ function pollForTransactions() {
 					newTransaction = transactionData.transactions[0].id
 					if (currentTransaction != newTransaction){
 						console.log('newTransaction Found');
+						currentTransaction = newTransaction;
+						createEvent(transactionData);
 					}
 				})
 				.catch(transactionError => {
@@ -147,53 +151,53 @@ function pollForTransactions() {
 	}, 10000)
 }
 
+function createEvent(transactionData) {
+	var postData = {
+  				'id': transactionData.transactions[0].id,
+  				'title': 'Total Amount $12',
+  				'subititle': 'New Square Event',
+  				'type': 'bookmark',
+  				'startTime': new Date(),
+  				'endTime': new Date(),
+  				'locationId': '73fca290-036b-11e7-9f57-9b252b8d0fcc',
+  				'cameras': []
+  			};
+	var SolinkRequest = https.request({
+			method: 'POST',
+			host: 'private-anon-f359831229-solinkplatform.apiary-mock.com',
+			path: '/events/',
+			headers: {
+    			'Authorization': 'Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJlbWFpbCI6ImpzdGF0aGFtQHNvbGlua2NvcnAuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImFwcF9tZXRhZGF0YSI6eyJ0ZW5hbnRJZCI6IjEiLCJ1c2VyVHlwZSI6InNvbGluayJ9LCJpc3MiOiJodHRwczovL3NvbGluay5hdXRoMC5jb20vIiwic3ViIjoiYXV0aDB8NTVkZGU3Yzc4ZWRjMjRjYzEwMzYwNTBlIiwiYXVkIjoiNVI5aURLaVE3bllDR09KYUJEclBiZXNNd25rR2o3aWgiLCJleHAiOjE0NDA2NTMxMjksImlhdCI6MTQ0MDYxNzEyOX0.MpghivSeJ2xDpfyyABqO4EQTa1FJWU4eu_2Fgbes_3Q',
+    			'Content-Type': 'application/json'
+  			},
+  			data: postData
+  		});
+	SolinkRequest.on('error', (e) => {
+			console.log('ERROR', e.message);
+		});
+		SolinkRequest.end(JSON.stringify(postData));
+}
 
 getLocationID()
-.then(data => {
-	if(data) {
-		locationID = data;
+	.then(data => {
+		if(data) {
+			locationID = data;
 
-		if(chargeNewPayment) {
-			chargeCard(locationID)
-			.then(transactionData => {
-				console.info(transactionData);
-				console.log('==========================================');
-
-				getTransactions(locationID)
-				.then(transactionData => {
-					console.info(transactionData);
-					currentTransaction = transactionData.transactions[0].id;
-					console.log(currentTransaction);
-					pollForTransactions();
-				})
-				.catch(transactionError => {
-					console.error(transactionError);
-				});
-			})
-			.catch(transactionError => {
-				console.error(transactionError);
-			});
-
-		} else {
-			console.log('==========================================');
 			getTransactions(locationID)
-				.then(transactionData => {
-					console.info(transactionData);
-					currentTransaction = transactionData.transactions[0].id;
-					console.log(currentTransaction);
-					pollForTransactions();
-				})
-				.catch(transactionError => {
-					console.error(transactionError);
-				});
-		}	
-	}
-})
-.catch(error => {
-	console.error(error);
-})
-
-
+					.then(transactionData => {
+						console.info(transactionData);
+						currentTransaction = transactionData.transactions[0].id;
+						console.log(currentTransaction);
+						pollForTransactions();
+					})
+					.catch(transactionError => {
+						console.error(transactionError);
+					});	
+		}
+	})
+	.catch(error => {
+		console.error(error);
+	})
 
 // Serve up public/ftp folder
 var serve = serveStatic('public', {'index': ['index.html', 'index.htm']})
@@ -203,5 +207,48 @@ var server = http.createServer(function onRequest (req, res) {
   serve(req, res, finalhandler(req, res))
 })
 
+
+var bodyParser = require('body-parser')
+app.use( bodyParser.json() );       // to support JSON-encoded bodies
+app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+  extended: true
+})); 
+
+app.use(serve);
+
+app.post('/nonce_callback', function (req, res) {
+
+	nonce = req.body.nonce;
+	console.log(nonce);
+
+	if(chargeNewPayment) {
+				chargeCard(locationID)
+				.then(transactionData => {
+					console.info(transactionData);
+					console.log('==========================================');
+
+					// getTransactions(locationID)
+					// .then(transactionData => {
+					// 	console.info(transactionData);
+					// 	currentTransaction = transactionData.transactions[0].id;
+					// 	console.log(currentTransaction);
+					// 	pollForTransactions();
+					// })
+					// .catch(transactionError => {
+					// 	console.error(transactionError);
+					// });
+				})
+				.catch(transactionError => {
+					console.error(transactionError);
+				});
+
+			} 
+
+  	res.send('Hello World!')
+})
+
 // Listen
-server.listen(3000)
+// server.listen(3000)
+app.listen(3000, function () {
+  console.log('Example app listening on port 3000!')
+})

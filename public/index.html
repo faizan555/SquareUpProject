@@ -7,6 +7,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="text/javascript" src="https://js.squareup.com/v2/paymentform">
     </script>
+    <script
+  src="https://code.jquery.com/jquery-3.2.1.min.js"
+  integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4="
+  crossorigin="anonymous"></script>
     <script>
 
     var applicationId = 'sandbox-sq0idp-y8o3gqZ3Sy_uwuRb4qHwRQ'; // <-- Add your application's ID here
@@ -29,18 +33,22 @@
       ],
       cardNumber: {
         elementId: 'sq-card-number',
-        placeholder: '•••• •••• •••• ••••'
+        placeholder: '•••• •••• •••• ••••',
+        value: '4532759734545858'
       },
       cvv: {
         elementId: 'sq-cvv',
-        placeholder: 'CVV'
+        placeholder: 'CVV',
+        value: '111'
       },
       expirationDate: {
         elementId: 'sq-expiration-date',
-        placeholder: 'MM/YY'
+        placeholder: 'MM/YY',
+        value: '07/19'
       },
       postalCode: {
-        elementId: 'sq-postal-code'
+        elementId: 'sq-postal-code',
+        value: '94103'
       },
       callbacks: {
 
@@ -112,6 +120,20 @@
           // Fill in this callback to perform actions after the payment form is
           // done loading (such as setting the postal code field programmatically).
           // paymentForm.setPostalCode('94103');
+        },
+        cardNonceResponseReceived: function(errors, nonce, cardData) {
+          console.info(cardData, nonce, errors);
+          $.ajax({
+            type: "POST",
+            url: '/nonce_callback',
+            data: {
+              nonce: nonce
+            },
+            success: function(data) {
+                console.info(data);
+            },
+            dataType: 'application/json'
+          });
         }
       }
     });
@@ -172,7 +194,7 @@
       You should replace the action attribute of the form with the path of
       the URL you want to POST the nonce to (for example, "/process-card")
     -->
-    <form id="nonce-form" novalidate action="REPLACE_ME" method="post">
+    <form id="nonce-form" novalidate action="/nonce_callback" method="post">
 
       <!--
         Whenever a nonce is generated, it's assigned as the value of this hidden
