@@ -17,6 +17,11 @@ var square_up_endpoint_uri = 'connect.squareup.com';
 var token = 'sandbox-sq0atb-yXNkt8kIw_laL5w__iF59g';
 var nonce = null;
 
+/**
+* This function returns a location id which will later be used 
+* to get transactions.
+* Used a sandbox token to return the id.
+*/
 function getLocationID() {
 	return new Promise((resolve, reject) => {
 		var SURequest = https.get({
@@ -36,9 +41,9 @@ function getLocationID() {
 			}).on('end', () => {
 				var bufferData = Buffer.concat(responseData);
 				var parsedDataJSON = JSON.parse(bufferData.toString());
-				console.log("DATA", bufferData.toString());
-				console.info("PARSED", parsedDataJSON);
-				console.info("LOCATIONS", parsedDataJSON.locations[0].id);
+				//console.log("DATA", bufferData.toString());
+				//console.info("PARSED", parsedDataJSON);
+				console.info("LOCATION ID: ", parsedDataJSON.locations[0].id);
 
 				if(parsedDataJSON.locations[0].id) {
 					resolve(parsedDataJSON.locations[0].id);
@@ -55,6 +60,9 @@ function getLocationID() {
 	});
 }
 
+/**
+* This function returns all transactions for a particular location id.
+*/
 function getTransactions(locationID) {
 	return new Promise((resolve, reject) => {
 		
@@ -75,7 +83,7 @@ function getTransactions(locationID) {
 			}).on('end', () => {
 				var bufferData = Buffer.concat(responseData);
 				var parsedDataJSON = JSON.parse(bufferData.toString());
-				// console.info("PARSED", parsedDataJSON);
+				//console.info("TRANSACTIONS: ", parsedDataJSON);
 				resolve(parsedDataJSON);
 			});
 		});
@@ -86,6 +94,11 @@ function getTransactions(locationID) {
 	});
 }
 
+/**
+* This function creates an nonce key which is a key that is generated
+* when a credit card is charged. nonce key is essential in creating a
+* new transaction
+*/
 function chargeCard(locationID) {
 	return new Promise((resolve, reject) => {
 		var postData = {
@@ -112,7 +125,7 @@ function chargeCard(locationID) {
 
 			res.on('data', (buffer) =>{
 				// responseData.push(buffer);
-				console.log(buffer);
+				//console.log(buffer);
 			})
 			// .on('end', () => {
 			// 	var bufferData = Buffer.concat(responseData);
@@ -126,21 +139,24 @@ function chargeCard(locationID) {
 			console.log('ERROR', e.message);
 			reject(e.message);
 		});
-		console.log(postData);
+		console.log("Credit card has been charged");
 		// SURequest.write(postData);
 		SURequest.end(JSON.stringify(postData));
 	});
 }
 
+/**
+* This function is set to 10 second interval where it looks for new transactions created
+*/
 function pollForTransactions() {
 	setInterval(() => {
-		console.log("TIME--------------------------------------------", new Date());
+		console.log("Polling for new Transactions-----------------TIME---->", new Date());
 		getTransactions(locationID)
 				.then(transactionData => {
-					console.info(transactionData);
+					//console.info(transactionData);
 					newTransaction = transactionData.transactions[0].id
 					if (currentTransaction != newTransaction){
-						console.log('newTransaction Found');
+						console.info('newTransaction ID Found: ', newTransaction);
 						currentTransaction = newTransaction;
 						createEvent(transactionData);
 					}
@@ -151,6 +167,10 @@ function pollForTransactions() {
 	}, 10000)
 }
 
+/**
+* This function takes all transaction data and creates a Solink Event as per 
+* speciications
+*/
 function createEvent(transactionData) {
 	var postData = {
   				'id': transactionData.transactions[0].id,
@@ -175,6 +195,7 @@ function createEvent(transactionData) {
 	SolinkRequest.on('error', (e) => {
 			console.log('ERROR', e.message);
 		});
+		console.log("Solink event has been created");
 		SolinkRequest.end(JSON.stringify(postData));
 }
 
@@ -185,9 +206,9 @@ getLocationID()
 
 			getTransactions(locationID)
 					.then(transactionData => {
-						console.info(transactionData);
+						//console.info(transactionData);
 						currentTransaction = transactionData.transactions[0].id;
-						console.log(currentTransaction);
+						console.info("Last Transaction ID: ", currentTransaction);
 						pollForTransactions();
 					})
 					.catch(transactionError => {
@@ -219,7 +240,7 @@ app.use(serve);
 app.post('/nonce_callback', function (req, res) {
 
 	nonce = req.body.nonce;
-	console.log(nonce);
+	console.log("New Nonce key generated:", nonce);
 
 	if(chargeNewPayment) {
 				chargeCard(locationID)
@@ -250,5 +271,5 @@ app.post('/nonce_callback', function (req, res) {
 // Listen
 // server.listen(3000)
 app.listen(3000, function () {
-  console.log('Example app listening on port 3000!')
+  console.log('App listening on port 3000!')
 })
